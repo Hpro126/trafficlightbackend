@@ -1,133 +1,121 @@
-const express = require("express");
-const cors = require("cors");
+const express=require("express");
+const WebSocket=require("ws");
+const cors=require("cors");
 
-const app = express();
+
+const app=express();
 
 app.use(cors());
 
-app.use(express.raw({
-    type: "image/jpeg",
-    limit: "10mb"
-}));
 
-let camera1 = null;
-let camera2 = null;
+let latestFrame=null;
 
 
-// Camera 1 upload
-app.post("/upload1", (req, res) => {
 
-    camera1 = req.body;
+const server=app.listen(
+process.env.PORT || 10000,
+()=>{
+console.log("Running");
+}
+);
 
-    console.log(
-        "Camera 1:",
-        camera1.length,
-        "bytes"
-    );
 
-    res.send("OK");
+
+const wss =
+new WebSocket.Server({
+server
 });
 
 
-// Camera 2 upload
-app.post("/upload2", (req, res) => {
 
-    camera2 = req.body;
+wss.on(
+"connection",
+(ws)=>{
 
-    console.log(
-        "Camera 2:",
-        camera2.length,
-        "bytes"
-    );
 
-    res.send("OK");
+console.log(
+"ESP32 connected"
+);
+
+
+ws.on(
+"message",
+(frame)=>{
+
+
+latestFrame=frame;
+
+
 });
 
 
-// Stream function
-function sendStream(req, res, camera) {
-
-    res.writeHead(200, {
-        "Content-Type":
-        "multipart/x-mixed-replace; boundary=frame",
-
-        "Cache-Control":
-        "no-cache",
-
-        "Connection":
-        "keep-alive"
-    });
+});
 
 
-    const timer = setInterval(() => {
-
-        if(camera !== null) {
-
-            res.write("--frame\r\n");
-
-            res.write(
-                "Content-Type: image/jpeg\r\n\r\n"
-            );
-
-            res.write(camera);
-
-            res.write("\r\n");
-
-        }
-
-    }, 200);
 
 
-    req.on("close", () => {
+app.get(
+"/stream1",
+(req,res)=>{
 
-        clearInterval(timer);
 
-    });
+res.writeHead(
+200,
+{
+"Content-Type":
+"multipart/x-mixed-replace; boundary=frame",
+
+"Cache-Control":"no-cache",
+
+"Connection":"keep-alive"
+}
+);
+
+
+
+setInterval(()=>{
+
+
+if(latestFrame){
+
+
+res.write(
+"--frame\r\n"
+);
+
+
+res.write(
+"Content-Type:image/jpeg\r\n\r\n"
+);
+
+
+res.write(
+latestFrame
+);
+
+
+res.write(
+"\r\n"
+);
+
 
 }
 
 
-// Camera 1 live stream
-app.get("/stream1", (req,res)=>{
+},50);
 
-    sendStream(
-        req,
-        res,
-        camera1
-    );
 
 });
 
 
-// Camera 2 live stream
-app.get("/stream2", (req,res)=>{
-
-    sendStream(
-        req,
-        res,
-        camera2
-    );
-
-});
 
 
-app.get("/", (req,res)=>{
+app.get(
+"/",
+(req,res)=>{
 
-    res.send(
-        "Smart Traffic AI Backend Running"
-    );
+res.send(
+"Traffic Camera Live Server"
+);
 
-});
-
-
-const PORT = process.env.PORT || 10000;
-
-
-app.listen(PORT,()=>{
-
-    console.log(
-        "Server running on port",
-        PORT
-    );
-
-});
+}); 
