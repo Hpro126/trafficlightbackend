@@ -1,130 +1,133 @@
-=const express = require("express");
-const WebSocket = require("ws");
+const express = require("express");
 const cors = require("cors");
 
 const app = express();
 
 app.use(cors());
 
-let camera1Frame = null;
-let camera2Frame = null;
+app.use(express.raw({
+    type: "image/jpeg",
+    limit: "10mb"
+}));
+
+let camera1 = null;
+let camera2 = null;
 
 
-const server = app.listen(
-    process.env.PORT || 10000,
-    ()=>{
-        console.log("Server Running");
-    }
-);
+// Camera 1 upload
+app.post("/upload1", (req, res) => {
 
+    camera1 = req.body;
 
-const wss = new WebSocket.Server({
-    server
+    console.log(
+        "Camera 1:",
+        camera1.length,
+        "bytes"
+    );
+
+    res.send("OK");
 });
 
 
-wss.on("connection",(ws,req)=>{
+// Camera 2 upload
+app.post("/upload2", (req, res) => {
 
+    camera2 = req.body;
 
-    console.log("Connected:",req.url);
+    console.log(
+        "Camera 2:",
+        camera2.length,
+        "bytes"
+    );
 
-
-    if(req.url === "/cam1"){
-
-        console.log("Camera 1 online");
-
-        ws.on("message",(frame)=>{
-            camera1Frame = frame;
-        });
-
-    }
-
-
-    if(req.url === "/cam2"){
-
-        console.log("Camera 2 online");
-
-        ws.on("message",(frame)=>{
-            camera2Frame = frame;
-        });
-
-    }
-
-
+    res.send("OK");
 });
 
 
+// Stream function
+function sendStream(req, res, camera) {
 
-function stream(res,getFrame){
-
-    res.writeHead(200,{
+    res.writeHead(200, {
         "Content-Type":
         "multipart/x-mixed-replace; boundary=frame",
 
-        "Cache-Control":"no-cache",
+        "Cache-Control":
+        "no-cache",
 
-        "Connection":"keep-alive"
+        "Connection":
+        "keep-alive"
     });
 
 
-    const timer=setInterval(()=>{
+    const timer = setInterval(() => {
 
-
-        let frame=getFrame();
-
-
-        if(frame){
+        if(camera !== null) {
 
             res.write("--frame\r\n");
 
             res.write(
-            "Content-Type: image/jpeg\r\n\r\n"
+                "Content-Type: image/jpeg\r\n\r\n"
             );
 
-            res.write(frame);
+            res.write(camera);
 
             res.write("\r\n");
 
         }
 
-
-    },50);
-
+    }, 200);
 
 
-    res.on("close",()=>{
+    req.on("close", () => {
+
         clearInterval(timer);
+
     });
 
 }
 
 
+// Camera 1 live stream
+app.get("/stream1", (req,res)=>{
 
-app.get("/stream1",(req,res)=>{
-
-    stream(
+    sendStream(
+        req,
         res,
-        ()=>camera1Frame
+        camera1
     );
 
 });
 
 
-app.get("/stream2",(req,res)=>{
+// Camera 2 live stream
+app.get("/stream2", (req,res)=>{
 
-    stream(
+    sendStream(
+        req,
         res,
-        ()=>camera2Frame
+        camera2
     );
 
 });
 
 
-
-app.get("/",(req,res)=>{
+app.get("/", (req,res)=>{
 
     res.send(
-        "Dual Traffic Camera Server Running"
+        "Smart Traffic AI Backend Running"
+    );
+
+});
+
+
+const PORT = process.env.PORT || 10000;
+
+
+app.listen(PORT,()=>{
+
+    console.log(
+        "Server running on port",
+        PORT
     );
 
 });
