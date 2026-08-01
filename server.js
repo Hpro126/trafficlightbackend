@@ -4,80 +4,131 @@ const cors = require("cors");
 const app = express();
 
 app.use(cors());
-app.use(express.raw({ type: "image/jpeg", limit: "10mb" }));
+
+app.use(express.raw({
+    type: "image/jpeg",
+    limit: "10mb"
+}));
 
 let camera1 = null;
 let camera2 = null;
 
 
-// Camera North-South
-app.post("/upload1", (req, res) => {
+// Receive Camera 1
+app.post("/upload1",(req,res)=>{
 
     camera1 = req.body;
 
-    console.log("Camera 1 frame received:",
-        camera1.length, "bytes");
-
     res.send("OK");
+
 });
 
 
-// Camera East-West
-app.post("/upload2", (req, res) => {
+// Receive Camera 2
+app.post("/upload2",(req,res)=>{
 
     camera2 = req.body;
 
-    console.log("Camera 2 frame received:",
-        camera2.length, "bytes");
-
     res.send("OK");
-});
-
-
-// Website fetches camera 1
-app.get("/camera1", (req,res)=>{
-
-    if(camera1){
-        res.writeHead(200,{
-            "Content-Type":"image/jpeg"
-        });
-
-        res.end(camera1);
-    }
-    else{
-        res.status(404).send("No camera 1 feed");
-    }
 
 });
 
 
-// Website fetches camera 2
-app.get("/camera2", (req,res)=>{
 
-    if(camera2){
-        res.writeHead(200,{
-            "Content-Type":"image/jpeg"
-        });
+// LIVE STREAM CAMERA 1
+app.get("/stream1",(req,res)=>{
 
-        res.end(camera2);
-    }
-    else{
-        res.status(404).send("No camera 2 feed");
-    }
+    res.writeHead(200,{
+        "Content-Type":
+        "multipart/x-mixed-replace; boundary=frame",
+        "Cache-Control":"no-cache",
+        "Connection":"keep-alive"
+    });
+
+
+    const interval=setInterval(()=>{
+
+        if(camera1){
+
+            res.write(
+                "--frame\r\n"
+            );
+
+            res.write(
+                "Content-Type: image/jpeg\r\n\r\n"
+            );
+
+            res.write(camera1);
+
+            res.write(
+                "\r\n"
+            );
+
+        }
+
+    },100);
+
+
+    req.on("close",()=>{
+
+        clearInterval(interval);
+
+    });
 
 });
+
+
+
+// LIVE STREAM CAMERA 2
+app.get("/stream2",(req,res)=>{
+
+    res.writeHead(200,{
+        "Content-Type":
+        "multipart/x-mixed-replace; boundary=frame",
+        "Cache-Control":"no-cache",
+        "Connection":"keep-alive"
+    });
+
+
+    const interval=setInterval(()=>{
+
+        if(camera2){
+
+            res.write("--frame\r\n");
+
+            res.write(
+              "Content-Type: image/jpeg\r\n\r\n"
+            );
+
+            res.write(camera2);
+
+            res.write("\r\n");
+
+        }
+
+    },100);
+
+
+    req.on("close",()=>{
+
+        clearInterval(interval);
+
+    });
+
+});
+
 
 
 app.get("/",(req,res)=>{
-    res.send("Smart Traffic AI Backend Running");
+    res.send("Smart Traffic AI Live Stream Backend");
 });
 
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 
 app.listen(PORT,()=>{
     console.log(
-      "Server running on port",
-      PORT
+        "Server running on",
+        PORT
     );
 });
