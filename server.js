@@ -8,7 +8,8 @@ const app=express();
 app.use(cors());
 
 
-let latestFrame=null;
+let camera1Frame=null;
+let camera2Frame=null;
 
 
 
@@ -30,26 +31,50 @@ server
 
 wss.on(
 "connection",
-(ws)=>{
+(ws,req)=>{
 
 
 console.log(
-"ESP32 connected"
+"ESP32 connected",
+req.url
 );
+
+
+
+if(req.url==="/cam1"){
 
 
 ws.on(
 "message",
 (frame)=>{
 
-
-latestFrame=frame;
-
+camera1Frame=frame;
 
 });
 
 
+}
+
+
+
+if(req.url==="/cam2"){
+
+
+ws.on(
+"message",
+(frame)=>{
+
+camera2Frame=frame;
+
 });
+
+
+}
+
+
+
+});
+
 
 
 
@@ -76,7 +101,7 @@ res.writeHead(
 setInterval(()=>{
 
 
-if(latestFrame){
+if(camera1Frame){
 
 
 res.write(
@@ -90,7 +115,7 @@ res.write(
 
 
 res.write(
-latestFrame
+camera1Frame
 );
 
 
@@ -110,6 +135,65 @@ res.write(
 
 
 
+
+
+app.get(
+"/stream2",
+(req,res)=>{
+
+
+res.writeHead(
+200,
+{
+"Content-Type":
+"multipart/x-mixed-replace; boundary=frame",
+
+"Cache-Control":"no-cache",
+
+"Connection":"keep-alive"
+}
+);
+
+
+
+setInterval(()=>{
+
+
+if(camera2Frame){
+
+
+res.write(
+"--frame\r\n"
+);
+
+
+res.write(
+"Content-Type:image/jpeg\r\n\r\n"
+);
+
+
+res.write(
+camera2Frame
+);
+
+
+res.write(
+"\r\n"
+);
+
+
+}
+
+
+},50);
+
+
+});
+
+
+
+
+
 app.get(
 "/",
 (req,res)=>{
@@ -118,4 +202,4 @@ res.send(
 "Traffic Camera Live Server"
 );
 
-}); 
+});
