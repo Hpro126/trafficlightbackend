@@ -1,134 +1,121 @@
-const express = require("express");
-const cors = require("cors");
+const express=require("express");
+const WebSocket=require("ws");
+const cors=require("cors");
 
-const app = express();
+
+const app=express();
 
 app.use(cors());
 
-app.use(express.raw({
-    type: "image/jpeg",
-    limit: "10mb"
-}));
 
-let camera1 = null;
-let camera2 = null;
+let latestFrame=null;
 
 
-// Receive Camera 1
-app.post("/upload1",(req,res)=>{
 
-    camera1 = req.body;
+const server=app.listen(
+process.env.PORT || 10000,
+()=>{
+console.log("Running");
+}
+);
 
-    res.send("OK");
-
-});
 
 
-// Receive Camera 2
-app.post("/upload2",(req,res)=>{
-
-    camera2 = req.body;
-
-    res.send("OK");
-
+const wss =
+new WebSocket.Server({
+server
 });
 
 
 
-// LIVE STREAM CAMERA 1
-app.get("/stream1",(req,res)=>{
-
-    res.writeHead(200,{
-        "Content-Type":
-        "multipart/x-mixed-replace; boundary=frame",
-        "Cache-Control":"no-cache",
-        "Connection":"keep-alive"
-    });
+wss.on(
+"connection",
+(ws)=>{
 
 
-    const interval=setInterval(()=>{
-
-        if(camera1){
-
-            res.write(
-                "--frame\r\n"
-            );
-
-            res.write(
-                "Content-Type: image/jpeg\r\n\r\n"
-            );
-
-            res.write(camera1);
-
-            res.write(
-                "\r\n"
-            );
-
-        }
-
-    },100);
+console.log(
+"ESP32 connected"
+);
 
 
-    req.on("close",()=>{
+ws.on(
+"message",
+(frame)=>{
 
-        clearInterval(interval);
 
-    });
+latestFrame=frame;
+
+
+});
+
 
 });
 
 
 
-// LIVE STREAM CAMERA 2
-app.get("/stream2",(req,res)=>{
 
-    res.writeHead(200,{
-        "Content-Type":
-        "multipart/x-mixed-replace; boundary=frame",
-        "Cache-Control":"no-cache",
-        "Connection":"keep-alive"
-    });
+app.get(
+"/stream1",
+(req,res)=>{
 
 
-    const interval=setInterval(()=>{
+res.writeHead(
+200,
+{
+"Content-Type":
+"multipart/x-mixed-replace; boundary=frame",
 
-        if(camera2){
+"Cache-Control":"no-cache",
 
-            res.write("--frame\r\n");
-
-            res.write(
-              "Content-Type: image/jpeg\r\n\r\n"
-            );
-
-            res.write(camera2);
-
-            res.write("\r\n");
-
-        }
-
-    },100);
+"Connection":"keep-alive"
+}
+);
 
 
-    req.on("close",()=>{
 
-        clearInterval(interval);
+setInterval(()=>{
 
-    });
+
+if(latestFrame){
+
+
+res.write(
+"--frame\r\n"
+);
+
+
+res.write(
+"Content-Type:image/jpeg\r\n\r\n"
+);
+
+
+res.write(
+latestFrame
+);
+
+
+res.write(
+"\r\n"
+);
+
+
+}
+
+
+},50);
+
 
 });
 
 
 
-app.get("/",(req,res)=>{
-    res.send("Smart Traffic AI Live Stream Backend");
-});
 
+app.get(
+"/",
+(req,res)=>{
 
-const PORT = process.env.PORT || 10000;
+res.send(
+"Traffic Camera Live Server"
+);
 
-app.listen(PORT,()=>{
-    console.log(
-        "Server running on",
-        PORT
-    );
 });
